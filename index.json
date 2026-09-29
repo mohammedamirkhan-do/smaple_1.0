@@ -1,7 +1,7 @@
 ﻿{
     "artifactBranch":  "applicationbackup",
-    "updatedAtUtc":  "2026-09-29T12:34:05Z",
-    "latest":  "1.0",
+    "updatedAtUtc":  "2026-09-29T12:35:48Z",
+    "latest":  "1.2",
     "versions":  [
                      {
                          "version":  "1.0",
@@ -11,6 +11,15 @@
                          "payload":  "SampleApp-1.0.exe",
                          "size":  82944,
                          "sha256":  "66fa368cc323e843040709ca6195b7ef0751335c7dc541f1ee57a8c0809b7fcf"
+                     },
+                     {
+                         "version":  "1.2",
+                         "builtAtUtc":  "2026-09-29T12:35:46Z",
+                         "branch":  "1.2",
+                         "commit":  "7c2476e",
+                         "payload":  "SampleApp-1.2.exe",
+                         "size":  106496,
+                         "sha256":  "25f07ec3c942b69534f92f92317d78dd11afbd3c48845c848cb5298bfde18724"
                      }
                  ]
 }
