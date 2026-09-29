@@ -4,7 +4,9 @@
 #include <QMainWindow>
 
 class QLabel;
+class QProgressBar;
 class QPushButton;
+class UpdateManager;
 
 class MainWindow : public QMainWindow
 {
@@ -14,6 +16,13 @@ public:
 
 private slots:
     void refreshRepoInfo();
+    void onCheckUpdateNow();
+    void onUpdateStatus(const QString &msg);
+    void onUpdateAvailable(const QString &newVersion);
+    void onUpdateProgress(qint64 received, qint64 total);
+    void onUpdateApplied(const QString &newVersion);
+    void onUpdateFailed(const QString &error);
+    void onUpToDate(const QString &version);
 
 private:
     // Returns e.g. "Sample_0.1" parsed from the git remote URL.
@@ -31,6 +40,11 @@ private:
     QLabel *m_welcomeLabel;
     QPushButton *m_refreshButton;
     QLabel *m_statusLabel;
+    // Auto-update widgets (WHERE #3)
+    QProgressBar *m_updateProgress;
+    QPushButton *m_checkUpdateButton;
+    QLabel *m_updateStatusLabel;
+    UpdateManager *m_updater;   // WHERE #2
 };
 
 #endif // MAINWINDOW_H

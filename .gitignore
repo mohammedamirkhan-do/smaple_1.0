@@ -20,7 +20,16 @@ build*/
 
 # Windows
 *.exe
+# ...but keep the demo payload name tracked so the demo works after clone
+!updates/SampleApp-1.2.exe
+
+# Updater runtime artifacts (WHERE #5) - never commit
+apply_update.bat
+release/apply_update.bat
+SampleApp-*.new.exe
+release/SampleApp-*.new.exe
 
 # git
 *.orig
+
 
