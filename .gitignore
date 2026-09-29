@@ -25,6 +25,7 @@ build*/
 # Updater runtime artifacts (generated next to exe) - never commit
 apply_update.bat
 SampleApp-*.new.exe
+update.log
 
 # git
 *.orig

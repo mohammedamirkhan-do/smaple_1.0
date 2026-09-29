@@ -40,11 +40,19 @@ private:
     bool handleLocalManifest();
     void fetchRemoteManifest(const QUrl &url);
     static int compareVersions(const QString &a, const QString &b);
-    void downloadUpdate(const QString &version, const QString &urlStr);
+    // WHERE #4: pick download url (primary, then optional mirror) and fetch it.
+    void downloadUpdate(const QString &version, const QString &urlStr,
+                        const QString &fallbackUrlStr = QString());
+    void startDownload(const QUrl &url);
+    void finishDownload();
+    // WHERE #6: after a failed download, try the manifest mirror, else wait 60s.
+    bool retryWithFallbackOrRecheck(const QString &reason);
+    void logLine(const QString &msg) const;
     QString downloadTargetPath(const QString &version) const;
     // WHERE #5: generates apply_update.bat next to the exe.
     bool writeUpdaterScript(const QString &newExePath, const QString &targetExePath) const;
     QString updaterScriptPath() const;
+    void scheduleRecheck();
 
     QNetworkAccessManager *m_net;
     QTimer *m_timer;
@@ -52,6 +60,8 @@ private:
     QNetworkReply *m_downloadReply;
     QString m_pendingVersion;
     QString m_pendingTarget;
+    QString m_pendingFallback;
+    bool m_triedFallback;
     bool m_checkInProgress;
     bool m_applied;
 };

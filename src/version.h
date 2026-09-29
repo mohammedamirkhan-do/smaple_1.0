@@ -14,3 +14,13 @@
 #define UPDATE_VERSION_URL_DEFAULT UPDATE_FEED_URL_DEFAULT
 
 #define UPDATE_LOCAL_MANIFEST_REL "updates/version.json"
+
+// The manifest may carry an optional "fallback_url" mirror. If the primary
+// "url" fails (HTTP error, or 404 because the GitHub Release is not published
+// yet, or a truncated file), the updater retries the mirror automatically —
+// still zero user clicks. Same swap + relaunch either way.
+
+// Timeline log written next to the exe. The app is built as a Windows GUI
+// (CONFIG -= console), so qDebug() output goes nowhere: this file is the only
+// way to see what the auto-updater did.
+#define UPDATE_LOG_FILE "update.log"
