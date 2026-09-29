@@ -6,8 +6,9 @@
 #define APP_VERSION_STR "1.0"
 #define APP_BRANCH_STR "1.0"
 
-// Auto-check after startup (30 sec as requested).
+// Auto-check after startup (30 sec as requested) + repeat while running.
 #define UPDATE_CHECK_INTERVAL_MS 30000
+#define UPDATE_RECHECK_INTERVAL_MS 60000
 
 // Remote manifest polled when no local manifest is found.
 // Host this file on branch 1.2 at updates/version.json, e.g.:

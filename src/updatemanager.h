@@ -45,6 +45,7 @@ private:
     // WHERE #5: generates apply_update.bat next to the exe.
     bool writeUpdaterScript(const QString &newExePath, const QString &targetExePath) const;
     QString updaterScriptPath() const;
+    void scheduleRecheck();
 
     QNetworkAccessManager *m_net;
     QTimer *m_timer;

@@ -29,7 +29,7 @@ UpdateManager::UpdateManager(QObject *parent)
 void UpdateManager::startAutoCheck(int intervalMs)
 {
     m_timer->start(intervalMs);
-    emit statusMessage(QStringLiteral("Auto-update check in %1s...").arg(intervalMs / 1000));
+    emit statusMessage(QStringLiteral("Auto-update check in %1s (then every 60s)...").arg(intervalMs / 1000));
 }
 
 void UpdateManager::checkNow()
@@ -45,7 +45,10 @@ QString UpdateManager::currentVersion() const
 
 QUrl UpdateManager::manifestUrl() const
 {
-    const QString env = QString::fromLocal8Bit(qgetenv("UPDATE_VERSION_URL")).trimmed();
+    // Env override (new name first, old name back-compat).
+    QString env = QString::fromLocal8Bit(qgetenv("UPDATE_FEED_URL")).trimmed();
+    if (env.isEmpty())
+        env = QString::fromLocal8Bit(qgetenv("UPDATE_VERSION_URL")).trimmed();
     if (!env.isEmpty())
         return QUrl(env);
     return QUrl(QString::fromLatin1(UPDATE_VERSION_URL_DEFAULT));
@@ -85,6 +88,7 @@ bool UpdateManager::handleLocalManifest()
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
         emit updateFailed(QStringLiteral("Cannot read %1").arg(path));
+        scheduleRecheck();
         return true;
     }
     const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
@@ -94,10 +98,12 @@ bool UpdateManager::handleLocalManifest()
     qDebug() << "[update] local manifest" << path << "latest=" << latest << "url=" << url;
     if (latest.isEmpty()) {
         emit updateFailed(QStringLiteral("Bad manifest (no version): %1").arg(path));
+        scheduleRecheck();
         return true;
     }
     if (compareVersions(latest, currentVersion()) <= 0) {
         emit upToDate(currentVersion());
+        scheduleRecheck();
         return true;
     }
     emit updateAvailable(latest);
@@ -110,10 +116,14 @@ void UpdateManager::fetchRemoteManifest(const QUrl &url)
     if (!url.isValid()) {
         m_checkInProgress = false;
         emit updateFailed(QStringLiteral("Bad update URL"));
+        scheduleRecheck();
         return;
     }
     QNetworkRequest req(url);
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    req.setRawHeader("User-Agent", "SampleApp-Updater/1.0");
+    req.setRawHeader("Cache-Control", "no-cache");
+    req.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::AlwaysNetwork);
     if (m_manifestReply)
         m_manifestReply->deleteLater();
     m_manifestReply = m_net->get(req);
@@ -128,7 +138,8 @@ void UpdateManager::onManifestFinished()
     if (!r) return;
     r->deleteLater();
     if (r->error() != QNetworkReply::NoError) {
-        emit updateFailed(QStringLiteral("Version check failed: %1").arg(r->errorString()));
+        emit updateFailed(QStringLiteral("Version check failed: %1 — retrying...").arg(r->errorString()));
+        scheduleRecheck();
         return;
     }
     const QJsonDocument doc = QJsonDocument::fromJson(r->readAll());
@@ -138,10 +149,12 @@ void UpdateManager::onManifestFinished()
     qDebug() << "[update] remote manifest latest=" << latest << "url=" << url;
     if (latest.isEmpty()) {
         emit updateFailed(QStringLiteral("Bad manifest (no version)"));
+        scheduleRecheck();
         return;
     }
     if (compareVersions(latest, currentVersion()) <= 0) {
         emit upToDate(currentVersion());
+        scheduleRecheck();
         return;
     }
     emit updateAvailable(latest);
@@ -175,6 +188,7 @@ void UpdateManager::downloadUpdate(const QString &version, const QString &urlStr
     if (urlStr.isEmpty()) {
         m_checkInProgress = false;
         emit updateFailed(QStringLiteral("Manifest has no download url"));
+        scheduleRecheck();
         return;
     }
     QUrl url(urlStr);
@@ -195,12 +209,14 @@ void UpdateManager::downloadUpdate(const QString &version, const QString &urlStr
         if (!QFile::copy(src, m_pendingTarget)) {
             m_checkInProgress = false;
             emit updateFailed(QStringLiteral("Copy failed: %1 not found?").arg(src));
+            scheduleRecheck();
             return;
         }
         emit downloadProgress(1, 1);
         m_checkInProgress = false;
         if (!writeUpdaterScript(m_pendingTarget, QCoreApplication::applicationFilePath())) {
             emit updateFailed(QStringLiteral("Cannot write updater script"));
+            scheduleRecheck();
             return;
         }
         m_applied = true;
@@ -210,6 +226,7 @@ void UpdateManager::downloadUpdate(const QString &version, const QString &urlStr
 
     QNetworkRequest req(url);
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    req.setRawHeader("User-Agent", "SampleApp-Updater/1.0");
     if (m_downloadReply)
         m_downloadReply->deleteLater();
     m_downloadReply = m_net->get(req);
@@ -231,20 +248,29 @@ void UpdateManager::onDownloadFinished()
     if (!r) return;
     r->deleteLater();
     if (r->error() != QNetworkReply::NoError) {
-        emit updateFailed(QStringLiteral("Download failed: %1").arg(r->errorString()));
+        emit updateFailed(QStringLiteral("Download failed: %1 — retrying...").arg(r->errorString()));
+        scheduleRecheck();
         return;
     }
     QFile out(m_pendingTarget);
     QFile::remove(m_pendingTarget);
     if (!out.open(QIODevice::WriteOnly)) {
         emit updateFailed(QStringLiteral("Cannot write %1").arg(m_pendingTarget));
+        scheduleRecheck();
         return;
     }
     out.write(r->readAll());
     out.close();
+    if (QFileInfo(m_pendingTarget).size() < 20000) {
+        QFile::remove(m_pendingTarget);
+        emit updateFailed(QStringLiteral("Downloaded file too small — not a valid exe. Retrying..."));
+        scheduleRecheck();
+        return;
+    }
     qDebug() << "[update] saved" << m_pendingTarget;
     if (!writeUpdaterScript(m_pendingTarget, QCoreApplication::applicationFilePath())) {
         emit updateFailed(QStringLiteral("Cannot write updater script"));
+        scheduleRecheck();
         return;
     }
     m_applied = true;
@@ -254,6 +280,12 @@ void UpdateManager::onDownloadFinished()
 QString UpdateManager::updaterScriptPath() const
 {
     return QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("apply_update.bat"));
+}
+
+void UpdateManager::scheduleRecheck()
+{
+    if (!m_applied)
+        m_timer->start(UPDATE_RECHECK_INTERVAL_MS);
 }
 
 bool UpdateManager::writeUpdaterScript(const QString &newExePath, const QString &targetExePath) const
