@@ -1,0 +1,20 @@
+# Qt / qmake
+Makefile*
+*.o
+*.obj
+moc_*
+ui_*
+qrc_*
+debug/
+release/
+*.user
+build*/
+
+# Qt Creator
+*.pro.user*
+
+# Windows
+*.exe
+
+# git
+*.orig
