@@ -147,12 +147,35 @@ if ($Keep -gt 0 -and $versions.Count -gt $Keep) {
     $versions = @(Get-VersionFolders | Sort-Object { $_.version })
 }
 
-[ordered]@{
-    artifactBranch = $ArtifactBranch
-    updatedAtUtc   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-    latest         = $Version
-    versions       = $versions
-} | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $CloneDir "index.json") -Encoding UTF8
+# Skip the write when nothing about the published versions changed, so a
+# re-publish of the same build does not create an index-only commit.
+function Get-IndexSignature($Items) {
+    (@($Items) | ForEach-Object { "$($_.version)|$($_.builtAtUtc)|$($_.commit)|$($_.sha256)|$($_.size)" }) -join ';'
+}
+
+$indexPath     = Join-Path $CloneDir "index.json"
+$prevLatest    = ""
+$prevSignature = ""
+if (Test-Path $indexPath) {
+    try {
+        $prev          = Get-Content $indexPath -Raw | ConvertFrom-Json
+        $prevLatest    = [string]$prev.latest
+        $prevSignature = Get-IndexSignature $prev.versions
+    } catch {
+        Write-Host "[ci] existing index.json unreadable - rewriting it"
+    }
+}
+
+if ((Get-IndexSignature $versions) -ne $prevSignature -or $prevLatest -ne $Version) {
+    [ordered]@{
+        artifactBranch = $ArtifactBranch
+        updatedAtUtc   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+        latest         = $Version
+        versions       = $versions
+    } | ConvertTo-Json -Depth 4 | Set-Content $indexPath -Encoding UTF8
+} else {
+    Write-Host "[ci] index.json unchanged"
+}
 
 # --- commit + push -----------------------------------------------------------
 Invoke-Git @("add", "-f", "-A") $CloneDir
