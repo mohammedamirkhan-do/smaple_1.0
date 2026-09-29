@@ -1,0 +1,16 @@
+﻿{
+    "artifactBranch":  "applicationbackup",
+    "updatedAtUtc":  "2026-09-29T12:34:05Z",
+    "latest":  "1.0",
+    "versions":  [
+                     {
+                         "version":  "1.0",
+                         "builtAtUtc":  "2026-09-29T12:33:48Z",
+                         "branch":  "1.0",
+                         "commit":  "bd1d371",
+                         "payload":  "SampleApp-1.0.exe",
+                         "size":  82944,
+                         "sha256":  "66fa368cc323e843040709ca6195b7ef0751335c7dc541f1ee57a8c0809b7fcf"
+                     }
+                 ]
+}

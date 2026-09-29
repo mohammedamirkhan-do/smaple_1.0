@@ -1,0 +1,13 @@
+﻿{
+    "app":  "SampleApp",
+    "version":  "1.0",
+    "branch":  "1.0",
+    "commit":  "bd1d371",
+    "builtAtUtc":  "2026-09-29T12:33:48Z",
+    "payload":  "SampleApp-1.0.exe",
+    "payloadSize":  82944,
+    "payloadSha256":  "66fa368cc323e843040709ca6195b7ef0751335c7dc541f1ee57a8c0809b7fcf",
+    "zip":  "SampleApp-1.0-win64.zip",
+    "zipSize":  20892919,
+    "runtimeDlls":  9
+}
