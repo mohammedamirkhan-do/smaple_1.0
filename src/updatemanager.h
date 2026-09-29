@@ -66,6 +66,8 @@ private:
     bool m_triedFallback;
     bool m_checkInProgress;
     bool m_applied;
+    // Why the current check started: "timer" or "manual check-now button".
+    QString m_checkTrigger;
 };
 
 #endif // UPDATEMANAGER_H
