@@ -1,5 +1,6 @@
 {
   "version": "1.2",
   "notes": "Branch 1.2 features: Hello/Clear/About buttons, theme picker, font size.",
-  "url": "SampleApp-1.2.exe"
+  "url": "SampleApp-1.2.exe",
+  "fallback_url": "https://raw.githubusercontent.com/mohammedamirkhan-do/smaple_1.0/1.2/updates/SampleApp-1.2.exe"
 }
