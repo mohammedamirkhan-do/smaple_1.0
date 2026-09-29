@@ -24,3 +24,7 @@ build*/
 # git
 *.orig
 
+
+# CI (ci/build.ps1 staging + Jenkins workspace leftovers)
+ci-out/
+
