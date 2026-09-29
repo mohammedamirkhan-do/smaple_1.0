@@ -25,7 +25,10 @@ UpdateManager::UpdateManager(QObject *parent)
     , m_applied(false)
 {
     m_timer->setSingleShot(true);
-    connect(m_timer, &QTimer::timeout, this, &UpdateManager::onCheckTimer);
+    connect(m_timer, &QTimer::timeout, this, [this]() {
+        m_checkTrigger = QStringLiteral("timer");
+        onCheckTimer();
+    });
     cleanupStaleArtifacts();
 }
 
@@ -70,6 +73,7 @@ void UpdateManager::startAutoCheck(int intervalMs)
 void UpdateManager::checkNow()
 {
     m_timer->stop();
+    m_checkTrigger = QStringLiteral("manual check-now button");
     onCheckTimer();
 }
 
@@ -103,11 +107,18 @@ QString UpdateManager::localManifestPath() const
 
 void UpdateManager::onCheckTimer()
 {
-    if (m_checkInProgress || m_applied)
+    const QString trigger = m_checkTrigger.isEmpty() ? QStringLiteral("direct call") : m_checkTrigger;
+    m_checkTrigger.clear();
+    if (m_checkInProgress || m_applied) {
+        // Useful when a check is requested while one is already running.
+        logLine(QStringLiteral("check skipped (busy), trigger: %1").arg(trigger));
         return;
+    }
     m_checkInProgress = true;
     emit statusMessage(QStringLiteral("Checking for updates..."));
-    logLine(QStringLiteral("---- update check started ----"));
+    logLine(QStringLiteral("---- update check started (trigger: %1, timerRemaining: %2ms) ----")
+                .arg(trigger)
+                .arg(m_timer->remainingTime()));
     if (handleLocalManifest())
         return; // local path (offline demo) handles its own state
     fetchRemoteManifest(manifestUrl());
