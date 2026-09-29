@@ -29,6 +29,9 @@ release/apply_update.bat
 SampleApp-*.new.exe
 release/SampleApp-*.new.exe
 
+# CI (ci/build.ps1 staging + Jenkins workspace leftovers)
+ci-out/
+
 # git
 *.orig
 

@@ -54,3 +54,21 @@ qmake SampleApp.pro
 make
 ./SampleApp
 ```
+
+## Continuous integration (Jenkins)
+
+Builds and binary publishing are automated: the pipeline stages the app
+(exe + Qt DLLs via `windeployqt` + zip) and pushes it to the
+`applicationbackup` branch, which also serves the update manifest consumed by
+the in-app updater.
+
+- Pipeline definition: `Jenkinsfile`
+- Scripts: `ci/build.ps1`, `ci/publish_artifacts.ps1`
+- Setup guide (Jenkins, credentials, artifact layout): `ci/JENKINS.md`
+
+Local equivalents, no Jenkins required:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ci\build.ps1
+powershell -ExecutionPolicy Bypass -File ci\publish_artifacts.ps1 -InDir ci-out\<version> -NoPush
+```
