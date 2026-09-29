@@ -11,10 +11,9 @@ SOURCES  += src/main.cpp \
 
 HEADERS  += src/mainwindow.h
 
-# Default (compile-time) fallback values.
-# These match https://github.com/Amirk9/Sample_0.1.git
-# At runtime the app tries to read the real `git remote` so
-# "whatever the git repository name is" gets displayed.
-DEFINES  += 'DEFAULT_REPO_NAME="Sample_0.1"'
-DEFINES  += 'DEFAULT_REPO_URL="https://github.com/Amirk9/Sample_0.1.git"'
+# NOTE: default repo fallback is hardcoded in src/mainwindow.cpp
+# (avoids qmake/MSVC DEFINES quoting issues with URLs).
+# Runtime still reads `git config --get remote.origin.url` so
+# whatever the git repository name is gets displayed on top UI.
+
 

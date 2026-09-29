@@ -9,10 +9,10 @@
 #include <QWidget>
 
 #ifndef DEFAULT_REPO_NAME
-#define DEFAULT_REPO_NAME "Sample_0.1"
+#define DEFAULT_REPO_NAME "smaple_1.0"
 #endif
 #ifndef DEFAULT_REPO_URL
-#define DEFAULT_REPO_URL "https://github.com/Amirk9/Sample_0.1.git"
+#define DEFAULT_REPO_URL "https://github.com/mohammedamirkhan-do/smaple_1.0.git"
 #endif
 
 MainWindow::MainWindow(QWidget *parent)

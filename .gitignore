@@ -7,14 +7,20 @@ ui_*
 qrc_*
 debug/
 release/
+build/
+.qtcreator/
 *.user
 build*/
 
 # Qt Creator
 *.pro.user*
 
+# qmake stash
+.qmake.stash
+
 # Windows
 *.exe
 
 # git
 *.orig
+
