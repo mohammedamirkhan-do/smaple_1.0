@@ -1,14 +1,21 @@
 #include "mainwindow.h"
+#include "updatemanager.h"
+#include "version.h"
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDateTime>
+#include <QDir>
 #include <QFont>
 #include <QHBoxLayout>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QProcess>
+#include <QProgressBar>
 #include <QSpinBox>
+#include <QTimer>
 #include <QLabel>
 #include <QProcess>
 #include <QPushButton>
@@ -22,15 +29,11 @@
 #define DEFAULT_REPO_URL "https://github.com/mohammedamirkhan-do/smaple_1.0.git"
 #endif
 
-#ifndef APP_VERSION
-#define APP_VERSION "1.2"
-#endif
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    setWindowTitle(QStringLiteral("SampleApp v%1 - %2").arg(QString::fromLatin1(APP_VERSION), gitRepoName()));
-    resize(520, 460);
+    setWindowTitle(QStringLiteral("SampleApp v%1 - %2").arg(QString::fromLatin1(APP_VERSION_STR), gitRepoName()));
+    resize(520, 520);
 
     auto *central = new QWidget(this);
     auto *layout = new QVBoxLayout(central);
@@ -122,13 +125,35 @@ MainWindow::MainWindow(QWidget *parent)
 
     layout->addStretch(1);
 
+    // Auto-update UI (same as 1.0; on 1.2 it reports "up to date").
+    m_updateProgress = new QProgressBar(central);
+    m_updateProgress->setRange(0, 100);
+    m_updateProgress->setValue(0);
+    m_updateProgress->setTextVisible(true);
+    m_updateProgress->setFormat(tr("Idle"));
+    layout->addWidget(m_updateProgress);
+
+    auto *updateRow = new QHBoxLayout();
+    m_checkUpdateButton = new QPushButton(tr("Check for Updates Now"), central);
+    updateRow->addStretch(1);
+    updateRow->addWidget(m_checkUpdateButton);
+    updateRow->addStretch(1);
+    layout->addLayout(updateRow);
+    connect(m_checkUpdateButton, &QPushButton::clicked, this, &MainWindow::onCheckUpdateNow);
+
+    m_updateStatusLabel = new QLabel(tr("Auto-update: waiting for 30s check..."), central);
+    m_updateStatusLabel->setAlignment(Qt::AlignCenter);
+    m_updateStatusLabel->setStyleSheet(QStringLiteral("color: #1a73e8; font-size: 11px;"));
+    m_updateStatusLabel->setWordWrap(true);
+    layout->addWidget(m_updateStatusLabel);
+
     m_statusLabel = new QLabel(central);
     m_statusLabel->setAlignment(Qt::AlignCenter);
     m_statusLabel->setStyleSheet(QStringLiteral("color: #888; font-size: 11px;"));
     layout->addWidget(m_statusLabel);
 
     // NEW (1.2): version footer.
-    m_versionLabel = new QLabel(tr("SampleApp v%1 | branch 1.2 features").arg(QString::fromLatin1(APP_VERSION)), central);
+    m_versionLabel = new QLabel(tr("SampleApp v%1 | branch 1.2 features").arg(QString::fromLatin1(APP_VERSION_STR)), central);
     m_versionLabel->setAlignment(Qt::AlignCenter);
     m_versionLabel->setStyleSheet(QStringLiteral("color: #aaa; font-size: 10px;"));
     layout->addWidget(m_versionLabel);
@@ -149,6 +174,16 @@ MainWindow::MainWindow(QWidget *parent)
     updateRepoLabels();
     updateBranchLabel();
     m_statusLabel->setText(tr("Welcome to v1.2! Try the new buttons below."));
+
+    // ---- Auto-update wiring (same engine as 1.0; 1.2 finds itself current) ----
+    m_updater = new UpdateManager(this);
+    connect(m_updater, &UpdateManager::statusMessage, this, &MainWindow::onUpdateStatus);
+    connect(m_updater, &UpdateManager::updateAvailable, this, &MainWindow::onUpdateAvailable);
+    connect(m_updater, &UpdateManager::downloadProgress, this, &MainWindow::onUpdateProgress);
+    connect(m_updater, &UpdateManager::updateApplied, this, &MainWindow::onUpdateApplied);
+    connect(m_updater, &UpdateManager::updateFailed, this, &MainWindow::onUpdateFailed);
+    connect(m_updater, &UpdateManager::upToDate, this, &MainWindow::onUpToDate);
+    m_updater->startAutoCheck(UPDATE_CHECK_INTERVAL_MS);
 }
 
 void MainWindow::refreshRepoInfo()
@@ -167,7 +202,7 @@ void MainWindow::onSayHelloClicked()
         m_statusLabel->setText(tr("Tip: type a name and press Say Hello."));
         return;
     }
-    m_welcomeLabel->setText(tr("Hello, %1! Welcome to SampleApp v%2.").arg(name, QString::fromLatin1(APP_VERSION)));
+    m_welcomeLabel->setText(tr("Hello, %1! Welcome to SampleApp v%2.").arg(name, QString::fromLatin1(APP_VERSION_STR)));
     m_statusLabel->setText(tr("Greeted %1.").arg(name));
 }
 
@@ -187,7 +222,7 @@ void MainWindow::onAboutClicked()
                           "Top banner shows git repo: <b>%2</b><br>"
                           "Branch: <b>%3</b><br>"
                           "New in 1.2: Say Hello, Clear, Theme picker, Font size.")
-                           .arg(QString::fromLatin1(APP_VERSION), gitRepoName(), gitBranchName()));
+                           .arg(QString::fromLatin1(APP_VERSION_STR), gitRepoName(), gitBranchName()));
     m_statusLabel->setText(tr("About dialog shown."));
 }
 
@@ -208,6 +243,64 @@ void MainWindow::onFontSizeChanged(int size)
                                .arg(m_boldCheck->isChecked() ? tr(" (bold)") : QString()));
 }
 
+void MainWindow::onCheckUpdateNow()
+{
+    m_updateProgress->setValue(0);
+    m_updateProgress->setFormat(tr("Checking..."));
+    m_updater->checkNow();
+}
+
+void MainWindow::onUpdateStatus(const QString &msg)
+{
+    m_updateStatusLabel->setText(tr("Auto-update: %1").arg(msg));
+}
+
+void MainWindow::onUpdateAvailable(const QString &newVersion)
+{
+    m_updateStatusLabel->setText(tr("Update v%1 found! Downloading...").arg(newVersion));
+    m_updateProgress->setFormat(tr("Downloading v%1...").arg(newVersion));
+}
+
+void MainWindow::onUpdateProgress(qint64 received, qint64 total)
+{
+    if (total > 0) {
+        const int pct = int(received * 100 / total);
+        m_updateProgress->setValue(pct);
+        m_updateProgress->setFormat(tr("%1%").arg(pct));
+    } else {
+        m_updateProgress->setRange(0, 0);
+        m_updateProgress->setFormat(tr("Downloading..."));
+    }
+}
+
+void MainWindow::onUpdateApplied(const QString &newVersion)
+{
+    // Downloaded + swap script ready -> run script, quit, relaunch new exe.
+    m_updateProgress->setRange(0, 100);
+    m_updateProgress->setValue(100);
+    m_updateProgress->setFormat(tr("Done"));
+    m_updateStatusLabel->setText(tr("v%1 downloaded. Restarting into new version...").arg(newVersion));
+    QProcess::startDetached(QDir(QCoreApplication::applicationDirPath())
+                                .filePath(QStringLiteral("apply_update.bat")),
+                            QStringList(), QCoreApplication::applicationDirPath());
+    QTimer::singleShot(1500, qApp, &QCoreApplication::quit);
+}
+
+void MainWindow::onUpdateFailed(const QString &error)
+{
+    m_updateProgress->setRange(0, 100);
+    m_updateProgress->setFormat(tr("Failed"));
+    m_updateStatusLabel->setText(tr("Update failed: %1").arg(error));
+}
+
+void MainWindow::onUpToDate(const QString &version)
+{
+    m_updateProgress->setRange(0, 100);
+    m_updateProgress->setValue(100);
+    m_updateProgress->setFormat(tr("Up to date"));
+    m_updateStatusLabel->setText(tr("You are on the latest version (v%1).").arg(version));
+}
+
 void MainWindow::updateBranchLabel()
 {
     const QString branch = gitBranchName();
@@ -216,7 +309,7 @@ void MainWindow::updateBranchLabel()
     else
         m_branchLabel->setText(tr("Branch: %1").arg(branch));
     setWindowTitle(QStringLiteral("SampleApp v%1 - %2 [%3]")
-                       .arg(QString::fromLatin1(APP_VERSION), gitRepoName(), branch));
+                       .arg(QString::fromLatin1(APP_VERSION_STR), gitRepoName(), branch));
 }
 
 void MainWindow::applyTheme(const QString &theme)
@@ -303,7 +396,7 @@ void MainWindow::updateRepoLabels()
     // TOP of UI: whatever the git repository name is.
     m_topBannerLabel->setText(tr("Git Repository: %1").arg(repoName));
     m_repoUrlLabel->setText(repoUrl);
-    setWindowTitle(QStringLiteral("SampleApp v%1 - %2").arg(QString::fromLatin1(APP_VERSION), repoName));
+    setWindowTitle(QStringLiteral("SampleApp v%1 - %2").arg(QString::fromLatin1(APP_VERSION_STR), repoName));
 
     qDebug() << "Repo name:" << repoName << "| Repo URL:" << repoUrl;
 }

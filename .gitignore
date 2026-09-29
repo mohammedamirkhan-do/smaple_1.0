@@ -18,9 +18,15 @@ build*/
 # qmake stash
 .qmake.stash
 
-# Windows
+# Windows binaries: ignore everything except the update payload
 *.exe
+!updates/SampleApp-*.exe
+
+# Updater runtime artifacts (generated next to exe) - never commit
+apply_update.bat
+SampleApp-*.new.exe
 
 # git
 *.orig
+
 

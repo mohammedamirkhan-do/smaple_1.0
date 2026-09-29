@@ -8,8 +8,10 @@ class QComboBox;
 class QLabel;
 class QLineEdit;
 class QMessageBox;
+class QProgressBar;
 class QPushButton;
 class QSpinBox;
+class UpdateManager;
 
 class MainWindow : public QMainWindow
 {
@@ -25,6 +27,13 @@ private slots:
     void onThemeChanged(const QString &theme);
     void onFontSizeChanged(int size);
     void updateBranchLabel();
+    void onCheckUpdateNow();
+    void onUpdateStatus(const QString &msg);
+    void onUpdateAvailable(const QString &newVersion);
+    void onUpdateProgress(qint64 received, qint64 total);
+    void onUpdateApplied(const QString &newVersion);
+    void onUpdateFailed(const QString &error);
+    void onUpToDate(const QString &version);
 
 private:
     // Returns e.g. "smaple_1.0" parsed from the git remote URL.
@@ -56,6 +65,11 @@ private:
     QCheckBox *m_boldCheck;
     QLabel *m_statusLabel;
     QLabel *m_versionLabel;     // NEW (1.2): version footer
+    // Auto-update widgets (same engine as 1.0)
+    QProgressBar *m_updateProgress;
+    QPushButton *m_checkUpdateButton;
+    QLabel *m_updateStatusLabel;
+    UpdateManager *m_updater;
 };
 
 #endif // MAINWINDOW_H
