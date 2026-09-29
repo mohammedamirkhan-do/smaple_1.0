@@ -48,6 +48,8 @@ private:
     // WHERE #6: after a failed download, try the manifest mirror, else wait 60s.
     bool retryWithFallbackOrRecheck(const QString &reason);
     void logLine(const QString &msg) const;
+    // Deletes payload/script leftovers from an earlier self-update.
+    void cleanupStaleArtifacts() const;
     QString downloadTargetPath(const QString &version) const;
     // WHERE #5: generates apply_update.bat next to the exe.
     bool writeUpdaterScript(const QString &newExePath, const QString &targetExePath) const;
